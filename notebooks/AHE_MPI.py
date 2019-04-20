@@ -148,18 +148,16 @@ image_y = image_x/(size-1)
 ######## Split Up and Send Out Initial Data : Begin ########
 if rank == 0:
 	#read in image, strip rgb values, convert to numpy array
-	img = plt.imread("test_image3.jpeg")
-	gray = rgb2gray(img)
-	clean_image = np.matrix.round(gray)
-
-	for i in range(size):
-		    data_send = clean_image[  image_y*i : image_y*(i+1) , :image_x ]
-    		comm.Send(data_send, dest=i)
-
+    img = plt.imread("test_image3.jpeg")
+    gray = rgb2gray(img)
+    clean_image = np.matrix.round(gray)
+    for i in range(size):
+        data_send = clean_image[  image_y*i : image_y*(i+1) , :image_x ]
+        comm.Send(data_send, dest=i)
 else:
-	# allocate space for incoming data
-	data_recv = np.empty( (image_x,image_y) , dtype='int') 
-	comm.Recv(data_recv, source=0) 
+    # allocate space for incoming data
+    data_recv = np.empty( (image_x,image_y) , dtype='int') 
+    comm.Recv(data_recv, source=0) 
 
 ######## Split Up and Send Out Initial Data : End ########
 ################################################################################################
@@ -178,30 +176,24 @@ Barrier()
 
 #comm.Sendrecv(send_data,dest=ipl, recvbuf=recv_data,source=ipr)
 
-if rank == 0:
-	#do nothing
-	continue
-
-else if rank == 1:
-	bottom_row_send = data_recv[ (image_y - half_window_len ): , :image_x ]
-	bottom_row_recv = np.empty( (image_x, half_window_len ) ,dtype='int' )
-	#Send and receive data from rank below
-	MPI.Comm.sendrecv( bottom_row_send , dest = (rank + 1) , bottom_row_recv , source= (rank+1) )
-	#combine data with bottom row received
-	concat_data = np.concatenate([ data_recv , bottom_row_recv ], axis=0 )
-	final_image = adaptive_hist_eq_mpi(concat_data , window_len , "top" )
-	final_image = final_image[ :(image_y - half_window_len) , : ]
-
-
-else if rank != (size-1): 
+if rank == 1:
+    bottom_row_send = data_recv[ (image_y - half_window_len ): , :image_x ]
+    bottom_row_recv = np.empty( (image_x, half_window_len ) ,dtype='int' )
+    #Send and receive data from rank below
+    MPI.Comm.sendrecv( bottom_row_send , (rank + 1) , bottom_row_recv , (rank+1) )
+    #combine data with bottom row received
+    concat_data = np.concatenate([ data_recv , bottom_row_recv ], axis=0 )
+    final_image = adaptive_hist_eq_mpi(concat_data , window_len , "top" )
+    final_image = final_image[ :(image_y - half_window_len) , : ]
+elif rank != (size-1):
 	top_row_send = data_recv[ :half_window_len , :image_x ]
 	top_row_recv = np.empty( (image_x, half_window_len ) ,dtype='int' )
 	bottom_row_send = data_recv[ (image_y - half_window_len ): , :image_x ]
 	bottom_row_recv = np.empty( (image_x, half_window_len ) ,dtype='int' )
 	#Send and receive data from rank below
-	MPI.Comm.sendrecv( top_row_send , dest = (rank - 1) , top_row_recv , source= (rank-1) )
+	MPI.Comm.sendrecv( top_row_send , (rank - 1) , top_row_recv , (rank-1) )
 	#Send and receive data from rank above
-	MPI.Comm.sendrecv( bottom_row_send , dest = (rank + 1) , bottom_row_recv , source= (rank+1) )
+	MPI.Comm.sendrecv( bottom_row_send , (rank + 1) , bottom_row_recv , (rank+1) )
 	#combine data with top and bottom data received
 	concat_data = np.concatenate([ top_row_recv ,data_recv , bottom_row_recv ], axis=0 )	
 	final_image = adaptive_hist_eq_mpi(concat_data , window_len , "middle" )
@@ -211,7 +203,7 @@ else:
 	top_row_send = data_recv[ :half_window_len , :image_x ]
 	top_row_recv = np.empty( (image_x, half_window_len ) ,dtype='int' )
 	#Send and receive data from rank above
-	MPI.Comm.sendrecv( bottom_row_send , dest = (rank + 1) , bottom_row_recv , source= (rank+1) )
+	MPI.Comm.sendrecv( bottom_row_send , (rank + 1) , bottom_row_recv , (rank+1) )
 	#combine data with top row received
 	concat_data = np.concatenate([ top_row_recv ,data_recv ], axis=0 )	
 	final_image = adaptive_hist_eq_mpi(concat_data , window_len , "bottom" )
