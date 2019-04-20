@@ -1,0 +1,43 @@
+#!/bin/bash
+
+#PBS -A open
+
+#PBS N ahe_mpi
+
+#PBS l nodes=5:ppn=12
+
+#PBS l walltime=00:05:00
+
+#PBS j oe
+
+#PBS -M bbn5024@psu.edu
+
+# Get started
+
+echo " "
+
+echo "Job started on ‘hostname‘ at ‘date‘"
+
+echo " "
+
+#load in python
+
+module purge
+
+module load python/3.6.3-anaconda5.0.1
+
+source activate my_root
+
+#go to the correct work directory
+
+cd ~/cuda_ahe/notebooks/
+
+mpirun -np 5 ./AHE_MPI.py
+
+# Finish up
+
+echo " "
+
+echo "Job Ended at ‘date‘"
+
+echo " "
