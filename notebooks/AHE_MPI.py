@@ -130,7 +130,7 @@ def adaptive_hist_eq_mpi(img, slider_len, worker):
             center_pixel_val = img[i, j]
             final_img[i, j] = window_hist(img[i-gap:i+gap, j-gap:j+gap], center_pixel_val, slider_len)
 
-    return final_img
+    return final_img.astype(int)
 
 ######## Helper Functions : End ########
 ################################################################################################
@@ -139,7 +139,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-window_len = (31, 31)
+window_len = (30, 30)
 half_window_len = ((window_len[0])//2)
 image_x = 225
 image_y = image_x//(size-1)
@@ -150,7 +150,7 @@ if rank == 0:
     #read in image, strip rgb values, convert to numpy array
     img = plt.imread("test_image3.jpeg")
     gray = rgb2gray(img)
-    clean_image = np.matrix.round(gray)
+    clean_image = np.matrix.round(gray).astype(int)
     print("master sending data")
     sys.stdout.flush()
     for i in range(1, size):
@@ -162,7 +162,7 @@ else:
     # allocate space for incoming data
     print("receiving data from master")
     sys.stdout.flush()
-    data_recv = np.empty( (image_x,image_y) , dtype='int')
+    data_recv = np.empty( (image_y, image_x) , dtype='int')
     comm.Recv(data_recv, source=0)
     print("data received from master")
     sys.stdout.flush()
@@ -188,12 +188,14 @@ if rank == 0:
 elif rank == 1:
     print("start rank 1")
     sys.stdout.flush()
+    print("received data for rank", rank, len(data_recv), len(data_recv[0]))
+    sys.stdout.flush()
     bottom_row_send = data_recv[ (image_y - half_window_len ): , :image_x ]
-    bottom_row_recv = np.empty( (image_x, half_window_len ) ,dtype='int' )
+    bottom_row_recv = np.empty( (half_window_len, image_x ) ,dtype='int' )
     #Send and receive data from rank below
-    comm.sendrecv( bottom_row_send , dest=(rank + 1) , recvbuf=bottom_row_recv , source=(rank+1) )
+    comm.Sendrecv( [bottom_row_send, MPI.INT] , dest=(rank + 1) , recvbuf=[bottom_row_recv, MPI.INT] , source=(rank+1) )
     #combine data with bottom row received
-    concat_data = np.concatenate([ data_recv , bottom_row_recv ], axis=1 )
+    concat_data = np.concatenate([ data_recv , bottom_row_recv ], axis=0 )
     final_image = adaptive_hist_eq_mpi(concat_data , window_len , "top" )
     final_image = final_image[ :(image_y - half_window_len) , : ]
     print("finish rank 1")
@@ -201,16 +203,21 @@ elif rank == 1:
 elif rank != (size-1):
     print("start middle workers")
     sys.stdout.flush()
+    print("receved data for rank", rank, len(data_recv), len(data_recv[0]))
+    sys.stdout.flush()
     top_row_send = data_recv[ :half_window_len , :image_x ]
-    top_row_recv = np.empty( (image_x, half_window_len ) ,dtype='int' )
+    top_row_recv = np.empty( (half_window_len, image_x ) ,dtype='int' )
     bottom_row_send = data_recv[ (image_y - half_window_len ): , :image_x ]
-    bottom_row_recv = np.empty( (image_x, half_window_len ) ,dtype='int' )
+    bottom_row_recv = np.empty( (half_window_len, image_x ) ,dtype='int' )
     #Send and receive data from rank below
-    comm.sendrecv( top_row_send , dest=(rank - 1) , recvbuf=top_row_recv , source=(rank-1) )
+    print( "Size of top_row_send : " , len(top_row_send), len(top_row_send[0]))
+    print( "Size of top_row_recv : " , len(bottom_row_recv), len(bottom_row_recv[0]))
+    sys.stdout.flush()
+    comm.Sendrecv( [top_row_send, MPI.INT] , dest=(rank - 1) , recvbuf=[top_row_recv, MPI.INT] , source=(rank-1) )
     #Send and receive data from rank above
-    comm.sendrecv( bottom_row_send , dest=(rank + 1) , recvbuf=bottom_row_recv , source=(rank+1) )
+    comm.Sendrecv( [bottom_row_send, MPI.INT] , dest=(rank + 1) , recvbuf=[bottom_row_recv, MPI.INT] , source=(rank+1) )
     #combine data with top and bottom data received
-    concat_data = np.concatenate([ top_row_recv ,data_recv , bottom_row_recv ], axis=1 )
+    concat_data = np.concatenate([ top_row_recv ,data_recv , bottom_row_recv ], axis=0 )
     final_image = adaptive_hist_eq_mpi(concat_data , window_len , "middle" )
     final_image = final_image[ half_window_len: (image_y - half_window_len) , : ]
     print("finish middle worker")
@@ -218,12 +225,14 @@ elif rank != (size-1):
 else:
     print("start last worker")
     sys.stdout.flush()
+    print("data received for rank", rank, len(data_recv), len(data_recv[0]))
+    sys.stdout.flush()
     top_row_send = data_recv[ :half_window_len , :image_x ]
-    top_row_recv = np.empty( (image_x, half_window_len ) ,dtype='int' )
+    top_row_recv = np.empty( (half_window_len, image_x ) ,dtype='int' )
     #Send and receive data from rank above
-    comm.sendrecv( top_row_send , dest=(rank - 1) , recvbuf=top_row_recv , source=(rank-1) )
+    comm.Sendrecv( [top_row_send, MPI.INT] , dest=(rank - 1) , recvbuf=[top_row_recv, MPI.INT] , source=(rank-1) )
     #combine data with top row received
-    concat_data = np.concatenate([ top_row_recv ,data_recv ], axis=1 )
+    concat_data = np.concatenate([ top_row_recv ,data_recv ], axis=0 )
     final_image = adaptive_hist_eq_mpi(concat_data , window_len , "bottom" )
     final_image = final_image[ half_window_len: , : ]
     print("finish last worker")
@@ -246,15 +255,18 @@ comm.barrier()
 if rank != 0:
     comm.Send(final_image, dest=0)
 else:
-        # allocate space for incoming data
-        receive_list = []
-        for i in range(1,size):
-                final_data_recv = np.empty( (image_x,image_y) , dtype='int')
-                comm.Recv(final_data_recv, source=i)
-                receive_list.append(final_data_recv)
-
-        output_image = np.concatenate( receive_list , dtype='int')
-        #output image
-        scipy.misc.imsave( "output_image.jpg", output_image)
+    # allocate space for incoming data
+    receive_list = []
+    for i in range(1,size):
+        final_data_recv = np.empty( (image_y, image_x) , dtype='int')
+        comm.Recv(final_data_recv, source=i)
+        receive_list.append(final_data_recv)
+    output_image = np.concatenate( receive_list , axis=0)
+    #output image
+    #scipy.misc.imsave( "output_image.jpg", output_image)
+    print(len(output_image), len(output_image[0]))
+    print(output_image)
+    plt.imshow(output_image)
+    plt.show()
 
 ######## Send Data Back to Root and Combine : End ########
