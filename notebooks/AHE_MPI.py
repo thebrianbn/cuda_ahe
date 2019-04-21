@@ -261,7 +261,7 @@ else:
         final_data_recv = np.empty( (image_y, image_x) , dtype='int')
         comm.Recv(final_data_recv, source=i)
         receive_list.append(final_data_recv)
-    output_image = np.concatenate( receive_list , axis=0)
+    output_image = np.concatenate( receive_list , axis=0).astype(int)
     #output image
     #scipy.misc.imsave( "output_image.jpg", output_image)
     print(len(output_image), len(output_image[0]))
