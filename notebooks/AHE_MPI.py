@@ -267,6 +267,8 @@ else:
     print(len(output_image), len(output_image[0]))
     print(output_image)
     plt.imshow(output_image, cmap=plt.get_cmap('gray'))
-    plt.savefig("test.jpg")
+    plt.savefig("test1.jpeg")
+    np.savetxt("output.txt",output_image)
+
 
 ######## Send Data Back to Root and Combine : End ########
