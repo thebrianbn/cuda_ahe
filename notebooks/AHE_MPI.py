@@ -26,8 +26,8 @@ def window_hist(img, center_pixel_val, slider_len):
         pixel_count = slider_len[0] * slider_len[1]
         slider_len = (slider_len[0]-1, slider_len[1]-1)
     else:
-        pixel_count = len(img[0]) * len(img[:,0])
-        slider_len = (len(img[0]), len(img[:,0]))
+        pixel_count = (len(img)) * (len(img[0]))
+        slider_len = (len(img[0]), len(img))
 
     # for each pixel in the window update pixel frequency
     for i in range(slider_len[1]):
@@ -154,12 +154,12 @@ if rank == 0:
     print("master sending data")
     sys.stdout.flush()
     for i in range(1, size):
-        data_send = clean_image[  image_y*i : image_y*(i+1) , :image_x ]
+        data_send = clean_image[  image_y*(i-1) : image_y*(i) , :image_x ]
         comm.Send(data_send, dest=i)
     print("all data sent")
     sys.stdout.flush()
 else:
-    # allocate space for incoming data
+    #allocate space for incoming data
     print("receiving data from master")
     sys.stdout.flush()
     data_recv = np.empty( (image_y, image_x) , dtype='int')
@@ -266,7 +266,7 @@ else:
     #scipy.misc.imsave( "output_image.jpg", output_image)
     print(len(output_image), len(output_image[0]))
     print(output_image)
-    plt.imshow(output_image)
-    plt.show()
+    plt.imshow(output_image, cmap=plt.get_cmap('gray'))
+    plt.savefig("test.jpg")
 
 ######## Send Data Back to Root and Combine : End ########
