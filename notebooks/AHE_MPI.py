@@ -18,20 +18,23 @@ def window_hist(img, center_pixel_val, slider_len):
     """ Calculate new pixel value for the center pixel
     in an image window for adaptive histogram equalization. """
 
+    # dictionaries to keep track of frequencies and probabilities
     pixel_freq = {}
     pdf = {}
     cdf = {}
 
+    # if the slider length is not given, this algorithm is run on the whole
+    # image
     if slider_len is not None:
         pixel_count = slider_len[0] * slider_len[1]
         slider_len = (slider_len[0]-1, slider_len[1]-1)
     else:
-        pixel_count = (len(img)) * (len(img[0]))
-        slider_len = (len(img[0]), len(img))
+        pixel_count = len(img) * len(img[0])
+        slider_len = (len(img), len(img[0]))
 
     # for each pixel in the window update pixel frequency
-    for i in range(slider_len[1]):
-        for j in range(slider_len[0]):
+    for i in range(slider_len[0]):
+        for j in range(slider_len[1]):
             pixel_val = img[i, j]
             if pixel_val in pixel_freq:
                 pixel_freq[pixel_val] += 1
@@ -68,20 +71,12 @@ def adaptive_hist_eq_mpi(img, slider_len, worker):
     m = len(img[0])
 
     gap = slider_len[0]// 2  # left and right shifts 
-    if worker=="top":
 
+    if worker=="top":
         for i in range(gap):
             for j in range(gap, m-gap):
                 center_pixel_val = img[i, j]
                 final_img[i, j] = window_hist(img[:i+gap,j-gap:j+gap], center_pixel_val, None)
-        for i in range(gap, n-gap):
-            for j in range(gap):
-                center_pixel_val = img[i, j]
-                final_img[i, j] = window_hist(img[i-gap:i+gap,:j+gap], center_pixel_val, None)
-        for i in range(gap, n-gap):
-            for j in range(n-gap, m):
-                center_pixel_val = img[i, j]
-                final_img[i, j] = window_hist(img[i-gap:i+gap,j-gap:m], center_pixel_val, None)
         for i in range(gap):
             for j in range(gap):
                 center_pixel_val = img[i, j]
@@ -90,20 +85,11 @@ def adaptive_hist_eq_mpi(img, slider_len, worker):
             for j in range(m-gap, m):
                 center_pixel_val = img[i, j]
                 final_img[i, j] = window_hist(img[:i+gap,j-gap:], center_pixel_val, None)
-
     elif worker=="bottom":
         for i in range(n-gap, n):
             for j in range(gap, m-gap):
                 center_pixel_val = img[i, j]
                 final_img[i, j] = window_hist(img[i-gap:n,j-gap:j+gap], center_pixel_val, None)
-        for i in range(gap, n-gap):
-            for j in range(gap):
-                center_pixel_val = img[i, j]
-                final_img[i, j] = window_hist(img[i-gap:i+gap,:j+gap], center_pixel_val, None)
-        for i in range(gap, n-gap):
-            for j in range(m-gap, m):
-                center_pixel_val = img[i, j]
-                final_img[i, j] = window_hist(img[i-gap:i+gap,j-gap:m], center_pixel_val, None)
         for i in range(n-gap, n):
             for j in range(m-gap, m):
                 center_pixel_val = img[i, j]
@@ -113,16 +99,15 @@ def adaptive_hist_eq_mpi(img, slider_len, worker):
                 center_pixel_val = img[i, j]
                 final_img[i, j] = window_hist(img[i-gap:,:j+gap], center_pixel_val, None)
 
-    elif worker=="middle":
-        for i in range(gap, n-gap):
-            for j in range(gap):
-                center_pixel_val = img[i, j]
-                final_img[i, j] = window_hist(img[i-gap:i+gap,:j+gap], center_pixel_val, None)
+    for i in range(gap, n-gap):
+        for j in range(gap):
+            center_pixel_val = img[i, j]
+            final_img[i, j] = window_hist(img[i-gap:i+gap,:j+gap], center_pixel_val, None)
 
-        for i in range(gap, n-gap):
-            for j in range(m-gap, m):
-                center_pixel_val = img[i, j]
-                final_img[i, j] = window_hist(img[i-gap:i+gap,j-gap:m], center_pixel_val, None)
+    for i in range(gap, n-gap):
+        for j in range(m-gap, m):
+            center_pixel_val = img[i, j]
+            final_img[i, j] = window_hist(img[i-gap:i+gap,j-gap:m], center_pixel_val, None)
 
     # for each pixel in the center of the image, apply adaptive histogram equalization
     for i in range(gap, n - gap):
@@ -139,6 +124,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
+# parameters for parallelization and AHE
 window_len = (30, 30)
 half_window_len = ((window_len[0])//2)
 image_x = 225
@@ -146,8 +132,10 @@ image_y = image_x//(size-1)
 
 ################################################################################################
 ######## Split Up and Send Out Initial Data : Begin ########
+
+# master sends out partitions of data, slaves receive the data
 if rank == 0:
-    #read in image, strip rgb values, convert to numpy array
+    # read in image, strip rgb values, convert to numpy array
     img = plt.imread("test_image3.jpeg")
     gray = rgb2gray(img)
     clean_image = np.matrix.round(gray).astype(int)
@@ -182,7 +170,6 @@ comm.barrier()
 ################################################################################################
 ######## Pass Necessary Data and Compute New Pixel Values : Begin ########
 
-#comm.Sendrecv(send_data,dest=ipl, recvbuf=recv_data,source=ipr)
 if rank == 0:
     pass
 elif rank == 1:
@@ -252,23 +239,26 @@ comm.barrier()
 #
 ################################################################################################
 ######## Send Data Back to Root and Combine : Begin ########
+# all slaves send their output to master
 if rank != 0:
     comm.Send(final_image, dest=0)
 else:
     # allocate space for incoming data
     receive_list = []
+
+    # retrieve data from each slave and store in local memory
     for i in range(1,size):
         final_data_recv = np.empty( (image_y, image_x) , dtype='int')
         comm.Recv(final_data_recv, source=i)
         receive_list.append(final_data_recv)
-    output_image = np.concatenate( receive_list , axis=0).astype(int)
-    #output image
-    #scipy.misc.imsave( "output_image.jpg", output_image)
-    print(len(output_image), len(output_image[0]))
-    print(output_image)
+
+    # combine all results
+    final_img = np.concatenate( receive_list , axis=0).astype(int)
+
+    # display output image
     plt.imshow(output_image, cmap=plt.get_cmap('gray'))
     plt.savefig("test1.jpeg")
-    np.savetxt("output.txt",output_image)
 
-
+    # save the image matrix for comparison
+    np.savetxt("final_image_mpi.txt", final_img)
 ######## Send Data Back to Root and Combine : End ########
