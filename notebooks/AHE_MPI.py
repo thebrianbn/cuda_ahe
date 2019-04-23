@@ -64,7 +64,7 @@ def adaptive_hist_eq_mpi(img, slider_len, worker):
 
     # make a copy of original to replace pixels
     final_img = copy(img)
-    n = len(img[:,0])
+    n = len(img)
     m = len(img[0])
 
     gap = slider_len[0]// 2  # left and right shifts 
