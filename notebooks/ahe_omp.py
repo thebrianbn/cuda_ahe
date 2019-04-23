@@ -1,58 +1,10 @@
-from collections import OrderedDict
 import matplotlib.pyplot as plt
 from multiprocessing import Pool, current_process
 import numpy as np
 from copy import copy
 from datetime import datetime
-from itertools import product, repeat
-
-def rgb2gray(rgb):
-    """ Convert an RGB image to grayscale. """
-    return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
-
-def window_hist(img, center_pixel_val, slider_len):
-    """ Calculate new pixel value for the center pixel
-    in an image window for adaptive histogram equalization. """
-    
-    pixel_freq = {}
-    pdf = {}
-    cdf = {}
-    
-    if slider_len is not None:
-        pixel_count = slider_len[0] * slider_len[1]
-        slider_len = (slider_len[0]-1, slider_len[1]-1)
-    else:
-        pixel_count = len(img) * len(img[0])
-        slider_len = (len(img[0]), len(img))
-    
-    # for each pixel in the window update pixel frequency
-    for i in range(slider_len[1]):
-        for j in range(slider_len[0]):
-            pixel_val = img[i, j]
-            if pixel_val in pixel_freq:
-                pixel_freq[pixel_val] += 1
-            else:
-                pixel_freq[pixel_val] = 1
-                
-    # for each pixel value, calculate its probability
-    for pixel_val, freq in pixel_freq.items():
-        pdf[pixel_val] = freq / pixel_count
-    
-    # order the pdf in order to calculate cdf
-    pdf = OrderedDict(sorted(pdf.items(), key=lambda t: t[0]))
-    
-    # for each pixel value, update cdf
-    prev = 0
-    for pixel_val, prob in pdf.items():
-        cdf[pixel_val] = prev + pdf[pixel_val]
-        prev = cdf[pixel_val]
-        cdf[pixel_val] = round(cdf[pixel_val] * 250)
-        
-        # once the cdf reaches the target pixel, no need to continue
-        if pixel_val == center_pixel_val:
-            break
-        
-    return cdf[center_pixel_val]
+from itertools import repeat
+from helper import window_hist, rgb2gray
 
 
 def adaptive_hist_eq_omp(img, slider_len, worker):
@@ -66,6 +18,7 @@ def adaptive_hist_eq_omp(img, slider_len, worker):
 
     gap = int(slider_len[0]// 2)  # left and right shifts
     
+    # top worker handles top border
     if worker=="top":
         for i in range(gap):
             for j in range(gap, m-gap):
@@ -80,6 +33,7 @@ def adaptive_hist_eq_omp(img, slider_len, worker):
                 center_pixel_val = img[i, j]
                 final_img[i, j] = window_hist(img[:i+gap,j-gap:], center_pixel_val, None)
             
+    # bottom worker handles bottom border
     elif worker=="bottom":
         for i in range(n-gap, n):
             for j in range(gap, m-gap):
@@ -94,6 +48,7 @@ def adaptive_hist_eq_omp(img, slider_len, worker):
                 center_pixel_val = img[i, j]
                 final_img[i, j] = window_hist(img[i-gap:,:j+gap], center_pixel_val, None)
 
+    # every worker handles left and right borders
     for i in range(gap, n-gap):
         for j in range(gap):
             center_pixel_val = img[i, j]
@@ -118,10 +73,11 @@ def adaptive_hist_eq_omp(img, slider_len, worker):
 
     return final_img
 
+
 if __name__ == "__main__":
 
     # read in the image
-    img = plt.imread("test_image1.jpg")
+    img = plt.imread("test_image3.jpeg")
 
     # convert image to grayscale and round pixel values
     gray = rgb2gray(img)
@@ -133,7 +89,7 @@ if __name__ == "__main__":
     # parameters for parallelization and AHE
     window_len = (31,31)
     gap = window_len[0] // 2
-    n_processes = 100
+    n_processes = 15
     data_per = n//n_processes
 
     # list for worker types
@@ -156,7 +112,7 @@ if __name__ == "__main__":
 
     # concatenate output of all workers
     final_img = np.concatenate(results, axis=0)
-    print("Time taken for OMP implementation: %f" % int(end-start))
+    print("Time taken for OMP implementation: ", end-start)
 
     # display output image
     plt.imshow(final_img, cmap=plt.get_cmap('gray'))
