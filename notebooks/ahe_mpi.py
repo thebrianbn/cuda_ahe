@@ -7,6 +7,7 @@ import numpy as np
 import scipy.misc
 from copy import copy
 from helper import window_hist, rgb2gray
+from datetime import datetime
 
 ################################################################################################
 ######## Helper Functions : Begin ########
@@ -93,20 +94,14 @@ if rank == 0:
     img = plt.imread("test_image3.jpeg")
     gray = rgb2gray(img)
     clean_image = np.matrix.round(gray).astype(int)
-    print("master sending data")
-    sys.stdout.flush()
     for i in range(1, size):
         data_send = clean_image[  image_y*(i-1) : image_y*(i) , :image_x ]
         comm.Send(data_send, dest=i)
-    print("all data sent")
-    sys.stdout.flush()
 else:
     #allocate space for incoming data
-    print("receiving data from master")
     sys.stdout.flush()
     data_recv = np.empty( (image_y, image_x) , dtype='int')
     comm.Recv(data_recv, source=0)
-    print("data received from master")
     sys.stdout.flush()
 
 ######## Split Up and Send Out Initial Data : End ########
@@ -127,10 +122,6 @@ comm.barrier()
 if rank == 0:
     start = datetime.now()
 elif rank == 1:
-    print("start rank 1")
-    sys.stdout.flush()
-    print("received data for rank", rank, len(data_recv), len(data_recv[0]))
-    sys.stdout.flush()
     bottom_row_send = data_recv[ (image_y - half_window_len ): , :image_x ]
     bottom_row_recv = np.empty( (half_window_len, image_x ) ,dtype='int' )
     #Send and receive data from rank below
@@ -139,20 +130,12 @@ elif rank == 1:
     concat_data = np.concatenate([ data_recv , bottom_row_recv ], axis=0 )
     final_image = adaptive_hist_eq_mpi(concat_data , window_len , "top" )
     final_image = final_image[ :(image_y - half_window_len) , : ]
-    print("finish rank 1")
-    sys.stdout.flush()
 elif rank != (size-1):
-    print("start middle workers")
-    sys.stdout.flush()
-    print("receved data for rank", rank, len(data_recv), len(data_recv[0]))
-    sys.stdout.flush()
     top_row_send = data_recv[ :half_window_len , :image_x ]
     top_row_recv = np.empty( (half_window_len, image_x ) ,dtype='int' )
     bottom_row_send = data_recv[ (image_y - half_window_len ): , :image_x ]
     bottom_row_recv = np.empty( (half_window_len, image_x ) ,dtype='int' )
     #Send and receive data from rank below
-    print( "Size of top_row_send : " , len(top_row_send), len(top_row_send[0]))
-    print( "Size of top_row_recv : " , len(bottom_row_recv), len(bottom_row_recv[0]))
     sys.stdout.flush()
     comm.Sendrecv( [top_row_send, MPI.INT] , dest=(rank - 1) , recvbuf=[top_row_recv, MPI.INT] , source=(rank-1) )
     #Send and receive data from rank above
@@ -161,13 +144,7 @@ elif rank != (size-1):
     concat_data = np.concatenate([ top_row_recv ,data_recv , bottom_row_recv ], axis=0 )
     final_image = adaptive_hist_eq_mpi(concat_data , window_len , "middle" )
     final_image = final_image[ half_window_len: (image_y - half_window_len) , : ]
-    print("finish middle worker")
-    sys.stdout.flush()
 else:
-    print("start last worker")
-    sys.stdout.flush()
-    print("data received for rank", rank, len(data_recv), len(data_recv[0]))
-    sys.stdout.flush()
     top_row_send = data_recv[ :half_window_len , :image_x ]
     top_row_recv = np.empty( (half_window_len, image_x ) ,dtype='int' )
     #Send and receive data from rank above
@@ -176,8 +153,6 @@ else:
     concat_data = np.concatenate([ top_row_recv ,data_recv ], axis=0 )
     final_image = adaptive_hist_eq_mpi(concat_data , window_len , "bottom" )
     final_image = final_image[ half_window_len: , : ]
-    print("finish last worker")
-    sys.stdout.flush()
 
 ######## Pass Necessary Data and Compute New Pixel Values : End ########
 ################################################################################################
@@ -206,11 +181,13 @@ else:
         final_data_recv = np.empty( (image_y, image_x) , dtype='int')
         comm.Recv(final_data_recv, source=i)
         receive_list.append(final_data_recv)
+        print("Master: image partition results received from slave %d", i)
 
     # combine all results
     final_img = np.concatenate( receive_list , axis=0).astype(int)
 
     print("Time taken for MPI implementation: ", end-start)
+    sys.stdout.flush()
 
     # save the image matrix for comparison
     np.savetxt("final_image_mpi.txt", final_img)
