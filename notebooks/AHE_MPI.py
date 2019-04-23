@@ -255,10 +255,6 @@ else:
     # combine all results
     final_img = np.concatenate( receive_list , axis=0).astype(int)
 
-    # display output image
-    plt.imshow(output_image, cmap=plt.get_cmap('gray'))
-    plt.savefig("test1.jpeg")
-
     # save the image matrix for comparison
     np.savetxt("final_image_mpi.txt", final_img)
 ######## Send Data Back to Root and Combine : End ########

@@ -161,3 +161,6 @@ if __name__ == "__main__":
     # display output image
     plt.imshow(final_img, cmap=plt.get_cmap('gray'))
     plt.show()
+
+    # save the image matrix for comparison
+    np.savetxt("final_image_omp.txt", final_img)
