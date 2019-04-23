@@ -97,11 +97,13 @@ if rank == 0:
         data_send = clean_image[  image_y*(i-1) : image_y*(i) , :image_x ]
         comm.Send(data_send, dest=i)
         print("Master: Image partition sent to slave. %d" % i)
+        sys.stdout.flush()
 else:
     #allocate space for incoming data
     data_recv = np.empty( (image_y, image_x) , dtype='int')
     comm.Recv(data_recv, source=0)
     print("Slave %d: Image partition received from master." % rank)
+    sys.stdout.flush()
 
 ######## Split Up and Send Out Initial Data : End ########
 ################################################################################################
@@ -135,7 +137,6 @@ elif rank != (size-1):
     bottom_row_send = data_recv[ (image_y - half_window_len ): , :image_x ]
     bottom_row_recv = np.empty( (half_window_len, image_x ) ,dtype='int' )
     #Send and receive data from rank below
-    sys.stdout.flush()
     comm.Sendrecv( [top_row_send, MPI.INT] , dest=(rank - 1) , recvbuf=[top_row_recv, MPI.INT] , source=(rank-1) )
     #Send and receive data from rank above
     comm.Sendrecv( [bottom_row_send, MPI.INT] , dest=(rank + 1) , recvbuf=[bottom_row_recv, MPI.INT] , source=(rank+1) )
@@ -155,6 +156,7 @@ else:
 
 if rank != 0:
     print("Slave %d: Adaptive Histogram Equalization finished on image partition." % rank)
+    sys.stdout.flush()
 
 ######## Pass Necessary Data and Compute New Pixel Values : End ########
 ################################################################################################
@@ -174,6 +176,7 @@ comm.barrier()
 if rank != 0:
     comm.Send(final_image, dest=0)
     print("Slave %d: Image partition results sent to master." % rank)
+    sys.stdout.flush()
 else:
     end = datetime.now()
     # allocate space for incoming data
@@ -185,6 +188,7 @@ else:
         comm.Recv(final_data_recv, source=i)
         receive_list.append(final_data_recv)
         print("Master: Image partition results received from slave %d", i)
+        sys.stdout.flush()
 
     # combine all results
     final_img = np.concatenate( receive_list , axis=0).astype(int)
