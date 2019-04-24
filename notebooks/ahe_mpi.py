@@ -82,7 +82,13 @@ size = comm.Get_size()
 window_len = (30, 30)
 half_window_len = ((window_len[0])//2)
 image_x = 225
-image_y = image_x//(size-1)
+
+# handle any extra rows by assigning it to last worker
+if image_x % (size-1) != 0 and rank == (size-1):
+    image_y = image_x // (size-1) + image_x % (size-1)
+else:
+    image_y = image_x//(size-1)
+    image_y_bottom = image_x // (size-1) + image_x % (size-1)
 
 ################################################################################################
 ######## Split Up and Send Out Initial Data : Begin ########
@@ -94,7 +100,11 @@ if rank == 0:
     gray = rgb2gray(img)
     clean_image = np.matrix.round(gray).astype(int)
     for i in range(1, size):
-        data_send = clean_image[  image_y*(i-1) : image_y*(i) , :image_x ]
+        # if last worker, handle extra rows
+        if i == (size - 1):
+            data_send = clean_image[image_y*(i-1):, :image_x]
+        else:
+            data_send = clean_image[  image_y*(i-1) : image_y*(i) , :image_x ]
         comm.Send(data_send, dest=i)
         print("Master: Image partition sent to slave %d." % i)
         sys.stdout.flush()
@@ -184,7 +194,11 @@ else:
 
     # retrieve data from each slave and store in local memory
     for i in range(1,size):
-        final_data_recv = np.empty( (image_y, image_x) , dtype='int')
+        # if last worker, may need extra space for buffer
+        if i == size-1:
+            final_data_recv = np.empty((image_y_bottom, image_x), dtype='int')
+        else:
+            final_data_recv = np.empty( (image_y, image_x) , dtype='int')
         comm.Recv(final_data_recv, source=i)
         receive_list.append(final_data_recv)
         print("Master: Image partition results received from slave %d." % i)
@@ -195,6 +209,8 @@ else:
 
     print("\nTime taken for MPI implementation: ", end-start)
     sys.stdout.flush()
+
+    print(final_img)
 
     # save the image matrix for comparison
     np.savetxt("final_image_mpi.txt", final_img)
