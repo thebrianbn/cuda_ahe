@@ -96,7 +96,7 @@ if rank == 0:
     for i in range(1, size):
         data_send = clean_image[  image_y*(i-1) : image_y*(i) , :image_x ]
         comm.Send(data_send, dest=i)
-        print("Master: Image partition sent to slave. %d" % i)
+        print("Master: Image partition sent to slave %d." % i)
         sys.stdout.flush()
 else:
     #allocate space for incoming data
@@ -187,13 +187,13 @@ else:
         final_data_recv = np.empty( (image_y, image_x) , dtype='int')
         comm.Recv(final_data_recv, source=i)
         receive_list.append(final_data_recv)
-        print("Master: Image partition results received from slave %d", i)
+        print("Master: Image partition results received from slave %d." & i)
         sys.stdout.flush()
 
     # combine all results
     final_img = np.concatenate( receive_list , axis=0).astype(int)
 
-    print("Time taken for MPI implementation: ", end-start)
+    print("\nTime taken for MPI implementation: ", end-start)
     sys.stdout.flush()
 
     # save the image matrix for comparison

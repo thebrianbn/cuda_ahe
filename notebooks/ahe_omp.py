@@ -63,7 +63,8 @@ def adaptive_hist_eq_omp(img, slider_len, worker):
         for j in range(gap, m - gap):
             center_pixel_val = img[i, j]
             final_img[i, j] = window_hist(img[i-gap:i+gap, j-gap:j+gap], center_pixel_val, slider_len)
-            
+    
+    # only return areas the worker worked on
     if worker == "top":
         final_img = final_img[:n-gap, :].astype(int)
     elif worker == "bottom":
