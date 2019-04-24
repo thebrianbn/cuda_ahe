@@ -1,10 +1,20 @@
 import matplotlib.pyplot as plt
 import numba
-from numba import cuda
+import pycuda.autoinit
+import pycuda.driver
+import pycuda.compiler
+import reduce
+import prefixsum
 import numpy as np
 from copy import copy
 from datetime import datetime
 from itertools import repeat
+
+source_module = pycuda.compiler.SourceModule \
+(
+"""
+""")
+
 
 def rgb2gray(rgb):
     """ Convert an RGB image to grayscale. """
