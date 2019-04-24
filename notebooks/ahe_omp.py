@@ -78,7 +78,7 @@ def adaptive_hist_eq_omp(img, slider_len, worker):
 if __name__ == "__main__":
 
     # read in the image
-    img = plt.imread("test_image3.jpeg")
+    img = plt.imread("test_image1.jpg")
 
     # convert image to grayscale and round pixel values
     gray = rgb2gray(img)
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     m = len(clean_image[0])
 
     # parameters for parallelization and AHE
-    window_len = (3,3)
+    window_len = (15,15)
     gap = window_len[0] // 2
     n_processes = 100
     data_per = n//n_processes
@@ -118,8 +118,6 @@ if __name__ == "__main__":
     # display output image
     plt.imshow(final_img, cmap=plt.get_cmap('gray'))
     plt.show()
-
-    print(final_img)
 
     # save the image matrix for comparison
     np.savetxt("final_image_omp.txt", final_img)

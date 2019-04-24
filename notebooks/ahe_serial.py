@@ -123,7 +123,7 @@ if __name__ == "__main__":
     m = len(clean_image[0])
 
     # parameters for parallelization and AHE
-    window_len = (31,31)
+    window_len = (6,6)
     gap = window_len[0] // 2
 
     # run the algorithm and time it
