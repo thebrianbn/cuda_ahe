@@ -88,9 +88,9 @@ if __name__ == "__main__":
     m = len(clean_image[0])
 
     # parameters for parallelization and AHE
-    window_len = (31,31)
+    window_len = (3,3)
     gap = window_len[0] // 2
-    n_processes = 15
+    n_processes = 100
     data_per = n//n_processes
 
     # list for worker types
@@ -118,6 +118,8 @@ if __name__ == "__main__":
     # display output image
     plt.imshow(final_img, cmap=plt.get_cmap('gray'))
     plt.show()
+
+    print(final_img)
 
     # save the image matrix for comparison
     np.savetxt("final_image_omp.txt", final_img)

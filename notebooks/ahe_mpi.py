@@ -210,8 +210,6 @@ else:
     print("\nTime taken for MPI implementation: ", end-start)
     sys.stdout.flush()
 
-    print(final_img)
-
     # save the image matrix for comparison
     np.savetxt("final_image_mpi.txt", final_img)
 ######## Send Data Back to Root and Combine : End ########
