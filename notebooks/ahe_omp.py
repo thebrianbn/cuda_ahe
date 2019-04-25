@@ -80,7 +80,7 @@ def adaptive_hist_eq_omp(img, slider_len, worker):
 if __name__ == "__main__":
 
     # read in the image
-    img = plt.imread("test_image1.jpg")
+    img = plt.imread("test_image3.jpeg")
 
     # convert image to grayscale and round pixel values
     gray = rgb2gray(img)
@@ -90,9 +90,9 @@ if __name__ == "__main__":
     m = len(clean_image[0])
 
     # parameters for parallelization and AHE
-    window_len = (15,15)
+    window_len = (31,31)
     gap = window_len[0] // 2
-    n_processes = 100
+    n_processes = 3
     data_per = n//n_processes
 
     # list for worker types

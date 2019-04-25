@@ -150,7 +150,7 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 # parameters for parallelization and AHE
-window_len = (3, 3)
+window_len = (15, 15)
 half_window_len = ((window_len[0])//2)
 image_x = 225
 n_processes = 2  # for OMP workers
@@ -228,8 +228,8 @@ elif rank == 1:
         splits.append(copy(concat_image[(i*data_per)-gap:((i+1)*data_per)+gap, :]))
     splits.append(concat_image[((n_processes-1)*data_per)-gap:, :])
 
-    with Pool(processes = n_processes) as pool:
-        results = pool.starmap(adaptive_hist_eq_omp, zip(splits, repeat(window_len), worker_type))
+    pool = Pool(processes = n_processes)
+    results = pool.starmap(adaptive_hist_eq_omp, zip(splits, repeat(window_len), worker_type))
     final_image = np.concatenate(results, axis=0)
 
     final_image = final_image[ :(image_y - half_window_len) , : ]
@@ -243,8 +243,24 @@ elif rank != (size-1):
     #Send and receive data from rank above
     comm.Sendrecv( [bottom_row_send, MPI.INT] , dest=(rank + 1) , recvbuf=[bottom_row_recv, MPI.INT] , source=(rank+1) )
     #combine data with top and bottom data received
-    concat_data = np.concatenate([ top_row_recv ,data_recv , bottom_row_recv ], axis=0 )
-    final_image = adaptive_hist_eq_mpi(concat_data , window_len , "middle" )
+    concat_image = np.concatenate([ top_row_recv ,data_recv , bottom_row_recv ], axis=0 )
+
+    n = len(concat_image)
+    m = len(concat_image[0])
+    data_per = n//n_processes
+
+    # list for worker types
+    worker_type = [for i in range(n_processes)]
+
+    # data for each worker to compute
+    splits = [concat_image[:data_per+gap,:]]
+    for i in range(1,n_processes-1):
+        splits.append(copy(concat_image[(i*data_per)-gap:((i+1)*data_per)+gap, :]))
+    splits.append(concat_image[((n_processes-1)*data_per)-gap:, :])
+
+    pool = Pool(processes = n_processes)
+    results = pool.starmap(adaptive_hist_eq_omp, zip(splits, repeat(window_len), worker_type))
+    final_image = np.concatenate(results, axis=0)
     final_image = final_image[ half_window_len: (image_y - half_window_len) , : ]
 else:
     top_row_send = data_recv[ :half_window_len , :image_x ]
@@ -252,8 +268,27 @@ else:
     #Send and receive data from rank above
     comm.Sendrecv( [top_row_send, MPI.INT] , dest=(rank - 1) , recvbuf=[top_row_recv, MPI.INT] , source=(rank-1) )
     #combine data with top row received
-    concat_data = np.concatenate([ top_row_recv ,data_recv ], axis=0 )
-    final_image = adaptive_hist_eq_mpi(concat_data , window_len , "bottom" )
+    concat_image = np.concatenate([ top_row_recv ,data_recv ], axis=0 )
+
+    n = len(concat_image)
+    m = len(concat_image[0])
+    data_per = n//n_processes
+
+    # list for worker types
+    worker_type = []
+    for i in range(n_processes-1):
+        worker_type.append("middle")
+    worker_type.append("bottom")
+
+    # data for each worker to compute
+    splits = [concat_image[:data_per+gap,:]]
+    for i in range(1,n_processes-1):
+        splits.append(copy(concat_image[(i*data_per)-gap:((i+1)*data_per)+gap, :]))
+    splits.append(concat_image[((n_processes-1)*data_per)-gap:, :])
+
+    pool = Pool(processes = n_processes)
+    results = pool.starmap(adaptive_hist_eq_omp, zip(splits, repeat(window_len), worker_type))
+    final_image = np.concatenate(results, axis=0)
     final_image = final_image[ half_window_len: , : ]
 
 if rank != 0:
