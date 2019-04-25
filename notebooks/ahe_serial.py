@@ -1,3 +1,5 @@
+# Author: Brian Nguyen, Daniel Marzec
+
 from collections import OrderedDict
 import matplotlib.pyplot as plt
 from multiprocessing import Process
@@ -113,7 +115,7 @@ def adaptive_hist_eq(img, slider_len):
 if __name__ == "__main__":
 
     # read in the image
-    img = plt.imread("test_image3.jpeg")
+    img = plt.imread("test_image1.jpg")
 
     # convert image to grayscale and round pixel values
     gray = rgb2gray(img)
@@ -123,12 +125,12 @@ if __name__ == "__main__":
     m = len(clean_image[0])
 
     # parameters for parallelization and AHE
-    window_len = (6,6)
+    window_len = (15, 15)
     gap = window_len[0] // 2
 
     # run the algorithm and time it
     start = datetime.now()
-    final_img = adaptive_hist_eq(clean_image, (31,31))
+    final_img = adaptive_hist_eq(clean_image, window_len)
     end = datetime.now()
 
     print("Time taken for serial implementation: ", end-start)

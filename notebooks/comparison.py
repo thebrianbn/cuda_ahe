@@ -1,3 +1,5 @@
+# Author: Brian Nguyen, Daniel Marzec
+
 import numpy as np
 
 if __name__ == "__main__":

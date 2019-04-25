@@ -1,3 +1,5 @@
+# Author: Brian Nguyen, Daniel Marzec
+
 import matplotlib.pyplot as plt
 from multiprocessing import Pool, current_process
 import numpy as np

@@ -1,3 +1,5 @@
+# Author: Brian Nguyen, Daniel Marzec
+
 from collections import OrderedDict
 import numpy as np
 

@@ -10,6 +10,8 @@ import scipy.misc
 from copy import copy
 from helper import window_hist, rgb2gray
 from datetime import datetime
+from multiprocessing import Pool, current_process
+from itertools import repeat
 
 ################################################################################################
 ######## Helper Functions : Begin ########
@@ -84,6 +86,8 @@ size = comm.Get_size()
 window_len = (30, 30)
 half_window_len = ((window_len[0])//2)
 image_x = 225
+n_processes = 2  # for OMP workers
+gap = window_len[0] // 2
 
 # handle any extra rows by assigning it to last worker
 if image_x % (size-1) != 0 and rank == (size-1):
@@ -141,7 +145,26 @@ elif rank == 1:
     comm.Sendrecv( [bottom_row_send, MPI.INT] , dest=(rank + 1) , recvbuf=[bottom_row_recv, MPI.INT] , source=(rank+1) )
     #combine data with bottom row received
     concat_data = np.concatenate([ data_recv , bottom_row_recv ], axis=0 )
-    final_image = adaptive_hist_eq_mpi(concat_data , window_len , "top" )
+
+    n = len(concat_data)
+    m = len(concat_data[0])
+    data_per = n//n_processes
+
+    # list for worker types
+    worker_type = ["top"]
+    for i in range(n_processes-2):
+        worker_type.append("middle")
+
+    # data for each worker to compute
+    splits = [concat_image[:data_per+gap,:]]
+    for i in range(1,n_processes-1):
+        splits.append(copy(concat_image[(i*data_per)-gap:((i+1)*data_per)+gap, :]))
+    splits.append(concat_image[((n_processes-1)*data_per)-gap:, :])
+
+    with Pool(processes = n_processes) as pool:
+        results = pool.starmap(adaptive_hist_eq_omp, zip(splits, repeat(window_len), worker_type))
+    final_image = np.concatenate(results, axis=0)
+
     final_image = final_image[ :(image_y - half_window_len) , : ]
 elif rank != (size-1):
     top_row_send = data_recv[ :half_window_len , :image_x ]
