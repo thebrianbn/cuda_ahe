@@ -338,5 +338,7 @@ else:
     sys.stdout.flush()
 
     # save the image matrix for comparison
-    np.savetxt("final_image_mpi.txt", final_img)
+    np.savetxt("final_image_hybrid.txt", final_img)
+
+comm.barrier()  # avoid conflict from Pool
 ######## Send Data Back to Root and Combine : End ########
