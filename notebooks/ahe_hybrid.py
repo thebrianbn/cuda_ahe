@@ -144,10 +144,10 @@ elif rank == 1:
     #Send and receive data from rank below
     comm.Sendrecv( [bottom_row_send, MPI.INT] , dest=(rank + 1) , recvbuf=[bottom_row_recv, MPI.INT] , source=(rank+1) )
     #combine data with bottom row received
-    concat_data = np.concatenate([ data_recv , bottom_row_recv ], axis=0 )
+    concat_image = np.concatenate([ data_recv , bottom_row_recv ], axis=0 )
 
-    n = len(concat_data)
-    m = len(concat_data[0])
+    n = len(concat_image)
+    m = len(concat_image[0])
     data_per = n//n_processes
 
     # list for worker types
