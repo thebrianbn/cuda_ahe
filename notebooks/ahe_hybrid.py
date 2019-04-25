@@ -250,7 +250,7 @@ elif rank != (size-1):
     data_per = n//n_processes
 
     # list for worker types
-    worker_type = [for i in range(n_processes)]
+    worker_type = ["middle" for i in range(n_processes)]
 
     # data for each worker to compute
     splits = [concat_image[:data_per+gap,:]]
