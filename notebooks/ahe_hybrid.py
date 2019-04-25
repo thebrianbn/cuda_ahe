@@ -150,7 +150,7 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 # parameters for parallelization and AHE
-window_len = (30, 30)
+window_len = (3, 3)
 half_window_len = ((window_len[0])//2)
 image_x = 225
 n_processes = 2  # for OMP workers
@@ -219,7 +219,7 @@ elif rank == 1:
 
     # list for worker types
     worker_type = ["top"]
-    for i in range(n_processes-2):
+    for i in range(n_processes-1):
         worker_type.append("middle")
 
     # data for each worker to compute
