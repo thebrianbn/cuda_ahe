@@ -1,1 +1,1 @@
-# cuda_ahe
+# Parallel Adaptive Histogram Equalization
